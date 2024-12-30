@@ -100,12 +100,21 @@ jobs:
         run: |
           docker push "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod"
 
-        # Install gke-gcloud-auth-plugin
+      # Install gke-gcloud-auth-plugin
       - name: Install gke-gcloud-auth-plugin
         run: |
-          sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+          # Add the Google Cloud SDK repository
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          sudo apt-get install -y apt-transport-https ca-certificates
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+          
+          # Update the package list
+          sudo apt-get update
+          
+          # Install the GKE auth plugin
+          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
 
-      # Deploy the service to the GKE cluster using kubectl
+      # Deploy the service to the GKE cluster
       - name: Deploy to GKE
         working-directory: ${{ matrix.service }}
         env:
