@@ -100,11 +100,26 @@ jobs:
         run: |
           docker push "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod"
 
-            # Deploy the service to the GKE cluster using kubectl
+        # Install gke-gcloud-auth-plugin
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
+      # Deploy the service to the GKE cluster using kubectl
       - name: Deploy to GKE
         working-directory: ${{ matrix.service }}
+        env:
+          USE_GKE_GCLOUD_AUTH_PLUGIN: "true"
         run: |
+          # Replace the image in the deployment file if needed
+          sed -i "s|image: .*|image: gcr.io/$PROJECT_ID/${{ matrix.service }}:prod|g" deployment.yaml
+          
+          # Apply Kubernetes manifests
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
+          
+          # Restart deployment to ensure new changes take effect
           kubectl rollout restart deployment ${{ matrix.service }}
+          
+          # Verify deployed services
           kubectl get services -o wide
