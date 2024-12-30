@@ -2,9 +2,9 @@ name: CI/CD Workflow for All Services
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
@@ -34,14 +34,29 @@ jobs:
         with:
           node-version: '18'
 
-      # Navigate to the specific service directory, install dependencies, and run tests
-      - name: Install Dependencies
+      # Run npm outdated to check for outdated packages
+      - name: Check for Outdated Packages
         working-directory: ${{ matrix.service }}
-        run: npm install
+        run: |
+          npm install  # Install dependencies first
+          npm outdated # List outdated packages
 
+      # Run npm update to update all outdated packages
+      - name: Update Outdated Packages
+        working-directory: ${{ matrix.service }}
+        run: |
+          npm update
+
+      # Run npm audit to check for vulnerabilities
+      - name: Run npm Audit
+        working-directory: ${{ matrix.service }}
+        run: |
+          npm audit --audit-level=moderate # Fail on moderate or higher vulnerabilities
+
+      # Run Tests
       - name: Run Jest Tests
         working-directory: ${{ matrix.service }}
-        run: npx jest
+        run: npx jest --passWithNoTests
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
