@@ -1,0 +1,13 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aggregation-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: aggregation-service
+  ports:
+    - protocol: TCP
+      port: 6000
+      targetPort: 6000

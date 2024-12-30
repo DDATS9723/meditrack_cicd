@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aggregation-service
+spec:
+  schedule: "0 0 * * *" # Runs daily at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: aggregator
+            image: gcr.io/ecstatic-motif-445409-b3/ms4:latest
+            command: ["node", "app.js"]
+          restartPolicy: OnFailure
