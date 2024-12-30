@@ -7,8 +7,8 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json (or npm-shrinkwrap.json)
 COPY package*.json ./
 
-# Install the latest npm version globally
-RUN npm install -g npm@latest
+# Install the latest npm version globally with --unsafe-perm
+RUN npm install -g npm@latest --unsafe-perm=true
 
 # Install dependencies
 RUN npm install
