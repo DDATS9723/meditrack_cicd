@@ -34,25 +34,10 @@ jobs:
         with:
           node-version: '18'
 
-      # Cache node_modules to speed up installation
-      - name: Cache Node Modules
-        uses: actions/cache@v3
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-
-      # Install dependencies
-      - name: Install Dependencies
-        working-directory: ${{ matrix.service }}
-        run: |
-          npm install
-
-      # Run npm outdated to check for outdated packages (optional, for logging only)
+      # Run npm outdated to check for outdated packages
       - name: Check for Outdated Packages
         working-directory: ${{ matrix.service }}
-        run: npm outdated || true
+        run: npm outdated # List outdated packages
 
       # Run npm update to update all outdated packages
       - name: Update Outdated Packages
@@ -72,11 +57,10 @@ jobs:
         run: |
           npx jest --passWithNoTests
 
-      # Set up Google Cloud CLI
+
+      # Set up Google Cloud CLI (no need to install components)
       - name: Setup Google Cloud CLI
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.3
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         with:
           service_account_key: ${{ secrets.GKE_SA_KEY }}
           project_id: ${{ secrets.GKE_PROJECT }}
@@ -105,10 +89,6 @@ jobs:
         run: |
           curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
           chmod u+x ./kustomize
-
-      # Install GCloud components for GKE
-      - name: Install GCloud Component
-        run: gcloud components install gke-gcloud-auth-plugin
 
       # Deploy the service to the GKE cluster
       - name: Deploy to GKE
