@@ -34,12 +34,25 @@ jobs:
         with:
           node-version: '18'
 
-      # Run npm outdated to check for outdated packages
-      - name: Check for Outdated Packages
+      # Cache node_modules to speed up installation
+      - name: Cache Node Modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Install dependencies
+      - name: Install Dependencies
         working-directory: ${{ matrix.service }}
         run: |
-          npm install  # Install dependencies first
-          npm outdated # List outdated packages
+          npm install
+
+      # Run npm outdated to check for outdated packages (optional, for logging only)
+      - name: Check for Outdated Packages
+        working-directory: ${{ matrix.service }}
+        run: npm outdated || true
 
       # Run npm update to update all outdated packages
       - name: Update Outdated Packages
@@ -58,7 +71,6 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: |
           npx jest --passWithNoTests
-
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
