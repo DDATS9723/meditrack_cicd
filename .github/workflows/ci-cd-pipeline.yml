@@ -56,7 +56,9 @@ jobs:
       # Run Tests
       - name: Run Jest Tests
         working-directory: ${{ matrix.service }}
-        run: npx jest --passWithNoTests
+        run: |
+          npx jest --passWithNoTests
+
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
