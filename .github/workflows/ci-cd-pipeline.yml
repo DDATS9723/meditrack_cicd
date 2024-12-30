@@ -21,7 +21,7 @@ jobs:
           - patient_service
           - appointment_service
           - notification_service
-          - aggregation_service
+          - aggregator_service
 
     steps:
       # Checkout the repository
@@ -35,11 +35,13 @@ jobs:
           node-version: '18'
 
       # Navigate to the specific service directory, install dependencies, and run tests
-      - name: Install Dependencies and Test
+      - name: Install Dependencies
         working-directory: ${{ matrix.service }}
-        run: |
-          npm install
-          npm test
+        run: npm install
+
+      - name: Run Jest Tests
+        working-directory: ${{ matrix.service }}
+        run: npm test
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
