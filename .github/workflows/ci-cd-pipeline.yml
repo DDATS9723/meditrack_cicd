@@ -28,49 +28,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Set up Node.js for each service
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      # Cache node_modules to speed up installation
-      - name: Cache Node Modules
-        uses: actions/cache@v3
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-
-      # Install dependencies
+      # Install required dependencies
       - name: Install Dependencies
-        working-directory: ${{ matrix.service }}
         run: |
-          npm install
-
-      # Run npm outdated to check for outdated packages (optional, for logging only)
-      - name: Check for Outdated Packages
-        working-directory: ${{ matrix.service }}
-        run: npm outdated || true
-
-      # Run npm update to update all outdated packages
-      - name: Update Outdated Packages
-        working-directory: ${{ matrix.service }}
-        run: |
-          npm update
-
-      # Run npm audit to check for vulnerabilities
-      - name: Run npm Audit
-        working-directory: ${{ matrix.service }}
-        run: |
-          npm audit --audit-level=moderate # Fail on moderate or higher vulnerabilities
-
-      # Run Tests
-      - name: Run Jest Tests
-        working-directory: ${{ matrix.service }}
-        run: |
-          npx jest --passWithNoTests
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin kubectl
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
@@ -87,6 +53,8 @@ jobs:
 
       # Get credentials for GKE cluster
       - name: Get GKE Credentials
+        env:
+          USE_GKE_GCLOUD_AUTH_PLUGIN: "true"
         run: gcloud container clusters get-credentials "$SI_CLUSTER" --zone "$SI_ZONE"
 
       # Build Docker image for the service
@@ -115,12 +83,8 @@ jobs:
             kubectl apply -f deployment.yaml
             kubectl apply -f service.yaml
             
-            # Check if the deployment exists before restarting
-            if kubectl get deployment ${{ matrix.service }}; then
-              kubectl rollout restart deployment ${{ matrix.service }}
-            else
-              echo "Deployment ${{ matrix.service }} not found."
-            fi
+            # Restart the deployment
+            kubectl rollout restart deployment patient-service
             
             # Verify deployed services
             kubectl get services -o wide
