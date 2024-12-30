@@ -1,0 +1,13 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 4000
+      targetPort: 4000
