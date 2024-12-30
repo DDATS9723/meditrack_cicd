@@ -100,35 +100,31 @@ jobs:
         run: |
           docker push "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod"
 
-      # Install gke-gcloud-auth-plugin
-      - name: Install gke-gcloud-auth-plugin
-        run: |
-          # Add the Google Cloud SDK repository
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-          sudo apt-get install -y apt-transport-https ca-certificates
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-          
-          # Update the package list
-          sudo apt-get update
-          
-          # Install the GKE auth plugin
-          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
-
       # Deploy the service to the GKE cluster
       - name: Deploy to GKE
         working-directory: ${{ matrix.service }}
         env:
           USE_GKE_GCLOUD_AUTH_PLUGIN: "true"
         run: |
-          # Replace the image in the deployment file if needed
-          sed -i "s|image: .*|image: gcr.io/$PROJECT_ID/${{ matrix.service }}:prod|g" deployment.yaml
-          
-          # Apply Kubernetes manifests
-          kubectl apply -f deployment.yaml
-          kubectl apply -f service.yaml
-          
-          # Restart deployment to ensure new changes take effect
-          kubectl rollout restart deployment ${{ matrix.service }}
-          
-          # Verify deployed services
-          kubectl get services -o wide
+          # Ensure deployment.yaml exists in the correct directory
+          if [ -f deployment.yaml ]; then
+            # Replace the image in the deployment file with the updated one (if needed)
+            sed -i "s|image: gcr.io/.*:.*|image: gcr.io/$PROJECT_ID/${{ matrix.service }}:prod|g" deployment.yaml
+            
+            # Apply Kubernetes manifests (both deployment and service)
+            kubectl apply -f deployment.yaml
+            kubectl apply -f service.yaml
+            
+            # Check if the deployment exists before restarting
+            if kubectl get deployment ${{ matrix.service }}; then
+              kubectl rollout restart deployment ${{ matrix.service }}
+            else
+              echo "Deployment ${{ matrix.service }} not found."
+            fi
+            
+            # Verify deployed services
+            kubectl get services -o wide
+          else
+            echo "deployment.yaml not found in ${{ matrix.service }} directory."
+            exit 1
+          fi
