@@ -107,4 +107,4 @@ app.post('/appointments', async (req, res) => {
 });
 
 // Start server
-app.listen(4000, () => console.log('Notification Service running on port 5000'));
+app.listen(4000, () => console.log('Notification Service running on port 4000'));
