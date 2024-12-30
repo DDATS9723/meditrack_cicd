@@ -1,8 +1,5 @@
- #customize Kubernetes manifests before deploying them
 apiVersion: kustomize.config.k8s.io/v1beta1
-#his YAML represents a Kustomization configuration
 kind: Kustomization
-
 resources:
   - service.yaml
   - deployment.yaml
