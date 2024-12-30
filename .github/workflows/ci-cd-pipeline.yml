@@ -1,74 +1,90 @@
-name: CI/CD Pipeline
+name: CI/CD Workflow for All Services
 
 on:
   push:
-    branches:
-      - main  # Trigger the workflow on pushes to the main branch
-  pull_request:  # Trigger the workflow on pull requests
-    branches:
-      - main
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  SI_CLUSTER: meditrack-cluster-1
+  SI_ZONE: us-central1
 
 jobs:
-  test:
-    name: Run Tests
+  build-and-deploy:
+    name: Build and Deploy All Services
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - patient_service
+          - appointment_service
+          - notification_service
+          - aggregator_service
+
     steps:
+      # Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set Up Node.js
+      # Set up Node.js for each service
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16  
+          node-version: '18'
+          cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm install
+      # Navigate to the specific service directory, install dependencies, and run tests
+      - name: Install Dependencies and Test
+        working-directory: ${{ matrix.service }}
+        run: |
+          npm install
+          npm test
 
-      - name: Run Tests
-        run: npm test  # Assuming you're using Jest or another test framework
-
-  build:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    needs: test  # Run this job only after the "test" job is successful
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Log In to DockerHub
-        uses: docker/login-action@v2
+      # Set up Google Cloud CLI
+      - name: Setup Google Cloud CLI
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.3
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
 
+      # Authenticate Docker with GKE
+      - name: Configure Docker in GKE
+        run: gcloud --quiet auth configure-docker
+
+      # Get credentials for GKE cluster
+      - name: Get GKE Credentials
+        run: gcloud container clusters get-credentials "$SI_CLUSTER" --zone "$SI_ZONE"
+
+      # Build Docker image for the service
       - name: Build Docker Image
+        working-directory: ${{ matrix.service }}
         run: |
-          docker build -t your-image-name:latest .
-          docker tag your-image-name:latest your-dockerhub-username/your-image-name:latest
+          docker build --tag "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod" .
 
-      - name: Push Docker Image
+      # Push Docker image to Google Container Registry
+      - name: Push Docker Image to GCR
         run: |
-          docker push your-dockerhub-username/your-image-name:latest
+          docker push "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod"
 
-  deploy:
-    name: Deploy to Kubernetes
-    runs-on: ubuntu-latest
-    needs: build  # Run this job only after the "build" job is successful
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Set Up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Configure kubectl
+      # Set up Kustomize for deployment
+      - name: Set up Kustomize
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
-          export KUBECONFIG=kubeconfig
+          curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
+          chmod u+x ./kustomize
 
-      - name: Deploy to Cluster
+      # Install GCloud components for GKE
+      - name: Install GCloud Component
+        run: gcloud components install gke-gcloud-auth-plugin
+
+      # Deploy the service to the GKE cluster
+      - name: Deploy to GKE
+        working-directory: ${{ matrix.service }}
         run: |
-          kubectl apply -f kubernetes/deployment.yaml
-          kubectl rollout status deployment/your-deployment-name
+          ./kustomize edit set image gcr.io/$PROJECT_ID/${{ matrix.service }}:prod=gcr.io/$PROJECT_ID/${{ matrix.service }}:prod
+          ./kustomize build . | kubectl apply -f -
+          kubectl rollout restart deployment ${{ matrix.service }}
+          kubectl get services -o wide
