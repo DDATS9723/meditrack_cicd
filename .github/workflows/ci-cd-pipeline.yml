@@ -100,13 +100,6 @@ jobs:
         run: |
           docker push "gcr.io/$PROJECT_ID/${{ matrix.service }}:prod"
 
-      # Set up Kustomize for deployment (Download and Install)
-      - name: Set up Kustomize
-        run: |
-          curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/v5.0.0/kustomize_v5.0.0_linux_amd64.tar.gz -o kustomize.tar.gz
-          tar -zxvf kustomize.tar.gz
-          sudo mv kustomize /usr/local/bin
-
       # Deploy the service to the GKE cluster
       - name: Deploy to GKE
         working-directory: ${{ matrix.service }}
