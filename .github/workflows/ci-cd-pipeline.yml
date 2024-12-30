@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Jest Tests
         working-directory: ${{ matrix.service }}
-        run: npm test
+        run: npx test
 
       # Set up Google Cloud CLI
       - name: Setup Google Cloud CLI
